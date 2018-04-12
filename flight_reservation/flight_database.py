@@ -14,9 +14,9 @@ from datetime import datetime
 from time import gmtime, strftime
 import time, sqlite3, re, os, io
 #Default paths for .db and .sql files to create and populate the database.
-DEFAULT_DB_PATH = "db/flight.db"
-DEFAULT_SCHEMA = "db/flight_schema.sql"
-DEFAULT_DATA_DUMP = "db/flight_data_dump.sql"
+DEFAULT_DB_PATH = "../db/flight.db"
+DEFAULT_SCHEMA = "../db/flight_schema.sql"
+DEFAULT_DATA_DUMP = "../db/flight_data_dump.sql"
 
 # Format used for dates
 DATE_FORMAT = "%Y-%m-%d"
