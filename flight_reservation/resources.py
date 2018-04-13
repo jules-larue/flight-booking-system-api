@@ -12,7 +12,9 @@ from flask_restful import Resource, Api, abort
 from werkzeug.exceptions import NotFound, UnsupportedMediaType
 
 from flight_reservation import flight_database as database
+#import flight_database as database
 from flight_reservation.flight_database import NoMoreSeatsAvailableException, EmailFormatException, DateFormatException, PhoneNumberFormatException
+#from flight_database import NoMoreSeatsAvailableException, EmailFormatException, DateFormatException, PhoneNumberFormatException
 
 # Constants for hypermedia formats and profiles
 MASON = "application/vnd.mason+json"
@@ -899,16 +901,283 @@ class Reservations(Resource):
         return Response(status=201,
                         headers={"Location": api.url_for(Reservation, reservation_id=reservation_id)})
 
-class Tickets(Resource):
-    pass
-
-
 class Ticket(Resource):
-    pass
+    def get(self, ticket_id):
+        """
+            Get ticket details:
+
+            INPUT PARAMETER:
+           : param str ticket_id: identifier of the required ticket.
+
+            OUTPUT:
+             * Return 200 if the ticket id exists.
+             * Return 404 if the ticket id is not stored in the system.
+
+            RESPONSE ENTITY BODY:
+            * Media type recommended: application/vnd.mason+json
+            * Profile recommended: Ticket
+
+            Link relations used: self, collection, delete, edit, reservation-tickets
+
+            Semantic descriptors used: ticket_id and reservation_id
+
+            NOTE:
+            The: py: method:`Connection.get_ticket()` returns a dictionary with the
+            the following format.
+
+            {
+                'ticket_id':,
+                'firstname': '',
+                'familyName': '',
+                'age': '',
+                'gender': '',
+                'seat': '',
+                'reservation_id':
+            }
+        """
+        # Get ticket from database
+        ticket_db = g.con.get_ticket(ticket_id)
+        if not ticket_db:
+            return create_error_response(404, "Unknown ticket id",
+                                         "There is no ticket with id " + str(ticket_id))
+
+        # Create the envelope
+        envelope = FlightBookingObject(
+            ticket_id = ticket_db["ticketnumber"],
+            firstName = ticket_db["firstname"],
+            familyName = ticket_db["lastname"],
+            age = ticket_db["age"],
+            gender = ticket_db["gender"],
+            seat = ticket_db["seat"],
+            reservation_id = ticket_db["reservationid"]
+        )
+
+        envelope.add_namespace("flight-booking-system", LINK_RELATIONS_URL)
+        envelope.add_control("self", href=api.url_for(Ticket, ticket_id=ticket_id))
+        envelope.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_TICKET_PROFILE)
+        envelope.add_control_edit_ticket(ticket_id=ticket_id)
+        envelope.add_control_delete_ticket(ticket_id=ticket_id)
+        envelope.add_control_reservation_tickets(reservation_id = ticket_db["reservationid"])
+        envelope.add_control("collection", href=api.url_for(Tickets), method="GET")
+
+        return Response(json.dumps(envelope), 200, mimetype=MASON + ";" + FLIGHT_BOOKING_SYSTEM_TICKET_PROFILE)
+
+
+    def put(self, ticket_id):
+        """
+            Edit the ticket
+
+            REQUEST ENTITY BODY:
+            * Media type: JSON
+
+            :param ticket_id: identifier of the ticket to edit.
+        """
+
+        if not g.con.contains_ticket(ticket_id):
+            return create_error_response(404, "Unknown ticket", "There is no ticket with id " + str(ticket_id))
+
+        request_body = request.get_json()
+        if not request_body:
+            return create_error_response(415, "Unsupported Media Type", "Use  JSON format")
+
+        # Get the ticket info from database
+        ticket_db = g.con.get_ticket(ticket_id)
+        try:
+            # Create a dict with the updated info of the ticket
+            # We don't need the id
+            # we DO NOT allow to edit these attributes
+            updated_ticket = {
+                "firstname": request_body["firstName"],
+                "familyName": request_body["familyName"],
+                "age": request_body["age"],
+                "gender": request_body["gender"],
+                "seat": request_body["seat"],
+            }
+        except KeyError:
+            return create_error_response(400, "Wrong request format", "Be sure to include all mandatory properties")
+
+        try:
+            if g.con.modify_ticket(ticket_id, ticket) is None:
+                return create_error_response(400, "Wrong request format",
+                                             "Be sure that all attributes have correct format.")
+
+        except (EmailFormatException, DateFormatException, PhoneNumberFormatException, ):
+            return create_error_response(400, "Wrong request format", "Be sure that all attributes have correct format.")
+
+        # Update success
+        return "", 204
+
+
+    def delete(self, ticket_id):
+        """
+            Delete a ticket in the system.
+
+           : param str ticket_id: identifier of the ticket to delete.
+
+            RESPONSE STATUS CODE:
+             * If the ticket is deleted returns 204.
+             * If the ticket id does not exist return 404
+        """
+
+        # Try to delete the ticket. If it could not be deleted, the database
+        # returns False.
+        if g.con.delete_ticket(ticket_id):
+            # RENDER RESPONSE
+            return '', 204
+        else:
+            # GENERATE ERROR RESPONSE
+            return create_error_response(404, "Unknown ticket",
+                                         "There is no a ticket with id " + str(ticket_id))
+
+class Tickets(Resource):
+    def post(self):
+        """
+        Adds a new ticket in the database.
+
+        REQUEST ENTITY BODY:
+         * Media type: JSON
+         * Profile: Ticket
+
+        Semantic descriptors used in template: firstName, familyName,
+        age, gender, seat, reservation_id
+
+        RESPONSE STATUS CODE:
+         * Returns 201 + the url of the new resource in the Location header if the ticket is created
+         * Return 409 if a ticket with the same seat exists in the database
+         * Return 400 if the request body is not well formed
+         * Return 415 if it receives a media type != application/json
+
+        NOTE:
+        The: py: method:`Connection.append_user()` receives as a parameter a
+        dictionary with the following format.
+        {
+            'firstName': firstName,
+            'familyName': familyName,
+            'age': age,
+            'gender': gender,
+            'seat': seat,
+            'reservation_id': reservation_id
+        }
+
+        """
+
+        # Check Content-Type
+        if JSON != request.headers.get("Content-Type", ""):
+            abort(415)
+        # PARSE THE REQUEST:
+        request_body = request.get_json(force=True)
+
+        # Check that body is JSON
+        if not request_body:
+            return create_error_response(415, "Unsupported Media Type",
+                                         "Use a JSON compatible format",
+                                         )
+        """
+        # Check conflict with email
+        try:
+            email = request_body["email"]
+        except KeyError:
+            return create_error_response(400, "Wrong request format", "User email was missing from the request")
+
+        # Conflict if the email already exists
+        if g.con.contains_user_with_email(email):
+            return create_error_response(409, "Wrong email",
+                                         "There is already a user with the same email: " + email)
+        """
+
+        # pick up rest of the mandatory fields
+        try:
+            firstName = request_body["firstName"]
+            familyName = request_body["familyName"]
+            age = request_body["age"]
+            gender = request_body["gender"]
+            reservation_id = request_body["reservation_id"]
+        except KeyError:
+            return create_error_response(400, "Wrong request format", "Be sure to include all mandatory properties")
+
+        ticket = {
+            'firstname': request_body["firstName"],
+            'lastname': familyName,
+            'age': age,
+            'gender': gender,
+            'reservationid': reservation_id,
+        }
+
+        try:
+            ticket_id = g.con.create_ticket(ticket)
+            if ticket_id is None:
+                return create_error_response(400, "Wrong request format",
+                                             "Be sure that all parameters are correct.")
+
+        except ValueError:
+            return create_error_response(400, "Wrong request format",
+                                         "Be sure you include all mandatory properties")
+
+        # CREATE RESPONSE AND RENDER
+        return Response(status=201,
+                        headers={"Location": api.url_for(Ticket, ticket_id=ticket_id)})
 
 
 class ReservationTickets(Resource):
-    pass
+
+    def get(self, reservation_id):
+        """
+            Gets a list of all the reservations of a specific user.
+
+            RESPONSE STATUS CODE:
+             * 200 if the reservations of the user are found
+             * 404 if the user_id does not exist in the database
+
+            RESPONSE ENTITITY BODY:
+
+             OUTPUT:
+                * Media type: application/vnd.mason+json
+                    https://github.com/JornWildt/Mason
+                * Profile: User
+                    /profiles/reservation-profile
+
+            Link relations used in items: delete, author, reservation-tickets
+
+            Semantic descriptions used in items: reservation_id, reference, re_date
+
+            Link relations used in links: author
+
+            Semantic descriptors used in template: reservation_id, reference, re_date,
+            user_id, flight_id
+        """
+
+        if not g.con.contains_reservation(reservation_id):
+            return create_error_response(404,
+                              title="Unknown reservation",
+                              message="There is no reservation with id " + str(reservation_id))
+
+        # Get the list of the user reservations
+        tickets = g.con.get_tickets_by_reservation(reservation_id)
+
+        # Create the envelope (response)
+        envelope = FlightBookingObject()
+
+        envelope.add_namespace("flight-booking-system", LINK_RELATIONS_URL)
+
+        envelope.add_control("self", href=api.url_for(ReservationTickets, reservation_id=reservation_id))
+        envelope.add_control("collection", href=api.url_for(Reservations))
+
+        items = envelope["items"] = []
+
+        for ticket in tickets:
+            item = FlightBookingObject(
+                ticket_id=ticket["ticketnumber"],
+                firstName=ticket["firstname"],
+                familyName=ticket["lastname"]
+            )
+            item.add_control("self", href=api.url_for(Ticket, ticket_id=ticket["ticketnumber"]))
+            item.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_RESERVATION_PROFILE)
+            item.add_control_edit_ticket(ticket_id=ticket["ticketnumber"])
+            item.add_control_delete_ticket(ticket_id=ticket["ticketnumber"])
+            items.append(item)
+
+        # RENDER
+        return Response(json.dumps(envelope), 200, mimetype=MASON + ";" + FLIGHT_BOOKING_SYSTEM_RESERVATION_PROFILE)
 
 
 class Flight(Resource):
@@ -1335,6 +1604,8 @@ api.add_resource(Reservation, "/flight-booking-system/api/reservations/<int:rese
 api.add_resource(ReservationTickets, "/flight-booking-system/api/reservations/<int:reservation_id>/tickets",
                  endpoint="reservation_tickets")
 api.add_resource(Tickets, "/flight-booking-system/api/tickets",
+                 endpoint="tickets")
+api.add_resource(Ticket, "/flight-booking-system/api/tickets/<int:ticket_id>",
                  endpoint="ticket")
 api.add_resource(Flight, "/flight-booking-system/api/flights/<int:flight_id>",
                  endpoint="flight")
