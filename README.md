@@ -6,7 +6,7 @@ To run the server, go to the root folder of the project. Then, run the main.py f
 
 RUN THE API TESTS
 ------------------
-TUn run the api tests, got to the root of the project. Then, execute the following command:
+To run the api tests, got to the root of the project. Then, execute the following command:
 
 > python3 -m test.flight_booking_system_api_tests
 
