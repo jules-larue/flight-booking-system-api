@@ -4,6 +4,9 @@ To run the server, go to the root folder of the project. Then, run the main.py f
 
 > python3 main.py
 
+The API can be accessed at the following URL:
+/flight-booking-system/api/
+
 RUN THE API TESTS
 ------------------
 To run the api tests, got to the root of the project. Then, execute the following command:
