@@ -981,14 +981,14 @@ class Ticket(Resource):
             return create_error_response(415, "Unsupported Media Type", "Use  JSON format")
 
         # Get the ticket info from database
-        ticket_db = g.con.get_ticket(ticket_id)
+        ticket = g.con.get_ticket(ticket_id)
         try:
             # Create a dict with the updated info of the ticket
             # We don't need the id
             # we DO NOT allow to edit these attributes
             updated_ticket = {
                 "firstname": request_body["firstName"],
-                "familyName": request_body["familyName"],
+                "lastname": request_body["familyName"],
                 "age": request_body["age"],
                 "gender": request_body["gender"],
                 "seat": request_body["seat"],
@@ -996,13 +996,10 @@ class Ticket(Resource):
         except KeyError:
             return create_error_response(400, "Wrong request format", "Be sure to include all mandatory properties")
 
-        try:
-            if g.con.modify_ticket(ticket_id, ticket) is None:
-                return create_error_response(400, "Wrong request format",
-                                             "Be sure that all attributes have correct format.")
-
-        except (EmailFormatException, DateFormatException, PhoneNumberFormatException, ):
-            return create_error_response(400, "Wrong request format", "Be sure that all attributes have correct format.")
+        updated_ticket["reservationid"] = g.con.get_ticket(ticket_id)["reservationid"]
+        if g.con.modify_ticket(ticket_id, updated_ticket) is None:
+            return create_error_response(400, "Wrong request format",
+                                         "Be sure that all attributes have correct format.")
 
         # Update success
         return "", 204
@@ -1171,13 +1168,13 @@ class ReservationTickets(Resource):
                 familyName=ticket["lastname"]
             )
             item.add_control("self", href=api.url_for(Ticket, ticket_id=ticket["ticketnumber"]))
-            item.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_RESERVATION_PROFILE)
+            item.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_TICKET_PROFILE)
             item.add_control_edit_ticket(ticket_id=ticket["ticketnumber"])
             item.add_control_delete_ticket(ticket_id=ticket["ticketnumber"])
             items.append(item)
 
         # RENDER
-        return Response(json.dumps(envelope), 200, mimetype=MASON + ";" + FLIGHT_BOOKING_SYSTEM_RESERVATION_PROFILE)
+        return Response(json.dumps(envelope), 200, mimetype=MASON + ";" + FLIGHT_BOOKING_SYSTEM_TICKET_PROFILE)
 
 
 class Flight(Resource):
