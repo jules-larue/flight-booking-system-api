@@ -464,6 +464,7 @@ class User(Resource):
 
         # Get the user info from database
         user_db = g.con.get_user(user_id)
+
         try:
             # Create a dict with the updated info of the user
             # We don't need the id and registration date as
@@ -552,7 +553,9 @@ class Users(Resource):
         for user in users_db:
             item = FlightBookingObject(
                 user_id=user["userid"],
-                registrationdate=user["registrationdate"]
+                registrationdate=user["registrationdate"],
+                lastName=user["lastname"],
+                firstName=user["firstname"],
             )
             item.add_control("self", href=api.url_for(User, user_id=user["userid"]))
             item.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_USER_PROFILE)
@@ -620,11 +623,11 @@ class Users(Resource):
 
         # pick up rest of the mandatory fields
         try:
-            first_name = request_body["firstname"]
-            last_name = request_body["lastname"]
-            phone_number = request_body["phonenumber"]
+            first_name = request_body["firstName"]
+            last_name = request_body["lastName"]
+            phone_number = request_body["phoneNumber"]
             email = request_body["email"]
-            birth_date = request_body["dateofBirth"]
+            birth_date = request_body["birthDate"]
             gender = request_body["gender"]
         except KeyError:
             return create_error_response(400, "Wrong request format", "Be sure to include all mandatory properties")
@@ -1181,26 +1184,26 @@ class Flight(Resource):
     def get(self, flight_id):
         """
             Get basic information of a flight:
-            
+
             INPUT PARAMETER:
             : param str flight_id: identifier of the required flight.
-            
+
             OUTPUT:
             * Return 200 if the flight id exists.
             * Return 404 if the flight id is not stored in the system.
-            
+
             RESPONSE ENTITY BODY:
             * Media type recommended: application/vnd.mason+json
             * Profile recommended: Flight
-            
+
             Link relations used: self, profile, collection, make-reservation, subsection
             Semantic descriptors used in template: flight_id, template_id, code, gate ,
             price,depDate,arrDate, nbInitialSeats, nbSeatsLeft
-            
+
             NOTE:
             The: py: method:`Connection.get_flight()` returns a dictionary with the
             the following format.
-            
+
             {'searchresultid': ,
             'flightid': ,
             'code': '',
@@ -1212,14 +1215,14 @@ class Flight(Resource):
             'seatsleft':
             }
             """
-        
+
         # Get user from database
         flight_db = g.con.get_flight(flight_id)
         if not flight_db:
             return create_error_response(404,
                                          title="Unknown flight",
                                          message="There is no flight with id " + str(flight_id))
-    
+
         # Create the envelope
         envelope = FlightBookingObject(
                     flight_id = flight_id,
@@ -1232,17 +1235,17 @@ class Flight(Resource):
                     nbInitialSeats = flight_db["totalseats"],
                     nbSeatsLeft = flight_db["seatsleft"]
                     )
-            
+
         envelope.add_namespace("flight-booking-system", LINK_RELATIONS_URL)
-                                       
+
         envelope.add_control("self", href=api.url_for(Flight, flight_id=flight_id))
         envelope.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_FLIGHT_PROFILE)
         envelope.add_control("collection", href=api.url_for(Flights, template_id=flight_db["searchresultid"]), method="GET")
         envelope.add_control("subsection", href=api.url_for(TemplateFlights, template_id = flight_db["searchresultid"]),
                                                             method="GET")
         envelope.add_control_make_reservation()
-                                       
-                                       
+
+
         return Response(json.dumps(envelope), 200, mimetype=MASON + ";" + FLIGHT_BOOKING_SYSTEM_FLIGHT_PROFILE)
 
 
@@ -1250,22 +1253,22 @@ class Flights(Resource):
     def get(self, template_id):
         """
             Get information of all flight for a particular template flight.
-            
+
             INPUT PARAMETER:
             : param str template_id: identifier of the required flights of particular template flight.
-            
+
             OUTPUT:
             * Return 200 if the template id exists.
             * Return 404 if the template id is not stored in the system/ no flights for the template id exists.
-            
+
             RESPONSE ENTITITY BODY:
-            
+
             OUTPUT:
             * Media type recommended: application/vnd.mason+json
             * Profile recommended: Flight
-            
+
             Link relations used in items: self, profile, add-flight, make-reservation
-            
+
             Semantic descriptions used in items: flight_id, template_id, code, gate ,
             price, depDate, arrDate, nbInitialSeats, nbSeatsLeft
             """
@@ -1276,22 +1279,22 @@ class Flights(Resource):
                               message="There is no template flight with id " + str(template_id))
         # Get the list of users from the database
         flights_db = g.con.get_flights_by_template(template_id)
-        
+
         if not flights_db:
             return create_error_response(404,
                                     title="Flights not found",
                                     message="There are no flights with TemplateFlight %s " % template_id)
-        
+
         # Create the envelope (response)
         envelope = FlightBookingObject()
-        
+
         envelope.add_namespace("flight-booking-system", LINK_RELATIONS_URL)
-        
+
         envelope.add_control("self", href=api.url_for(Flights, template_id=template_id))
         envelope.add_control_add_flight(template_id=template_id)
-        
+
         items = envelope["items"] = []
-        
+
         for flight in flights_db:
             item = FlightBookingObject(
                     flightid = flight["flightid"],
@@ -1307,12 +1310,12 @@ class Flights(Resource):
             item.add_control("self", href=api.url_for(Flight, flight_id=flight["flightid"]))
             item.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_FLIGHT_PROFILE)
             item.add_control_make_reservation()
-            
+
             items.append(item)
-                                                        
+
             # RENDER
             return Response(json.dumps(envelope), 200, mimetype=MASON + ";" + FLIGHT_BOOKING_SYSTEM_FLIGHT_PROFILE)
-                                                        
+
     def post(self, template_id):
         """
         Adds a new flight in the database.
@@ -1378,7 +1381,7 @@ class Flights(Resource):
         if not g.con.contains_template_flight(template_id):
             return create_error_response(400, "Wrong template flight id",
                                          "The template flight does not exist")
-        
+
         flight = {
             'searchresultid': template_id ,
             'flightid':flight_id ,
@@ -1444,7 +1447,7 @@ class TemplateFlight(Resource):
             destination = tflight_db["destination"],
             dep_time = tflight_db["departuretime"],
             arr_time = tflight_db["arrivaltime"],
-            
+
         )
 
         envelope.add_namespace("flight-booking-system", LINK_RELATIONS_URL)
@@ -1494,7 +1497,7 @@ class TemplateFlights(Resource):
 
         envelope.add_namespace("flight-booking-system", LINK_RELATIONS_URL)
 
-        
+
         items = envelope["items"] = []
 
         for tflight in tflights_db:
@@ -1541,7 +1544,7 @@ class TemplateFlights(Resource):
              'origin': origin,
              'destination': destination,
              'departuretime': dep_time,
-             'arrivaltime': arr_time 
+             'arrivaltime': arr_time
              }
 
         """
@@ -1612,6 +1615,11 @@ api.add_resource(TemplateFlight, "/flight-booking-system/api/template-flights/<i
                  endpoint="templateflight")
 api.add_resource(TemplateFlights, "/flight-booking-system/api/template-flights/",
                  endpoint="templateflights")
+
+#Send our schema file(s)
+@app.route("/flight-booking-system/schema/<schema_name>/")
+def send_json_schema(schema_name):
+    return send_from_directory(app.static_folder, "schema/{}.json".format("user"))
 
 #Start the application
 #DATABASE SHOULD HAVE BEEN POPULATED PREVIOUSLY
