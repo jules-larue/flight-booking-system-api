@@ -1241,7 +1241,7 @@ class Flight(Resource):
         envelope.add_control("self", href=api.url_for(Flight, flight_id=flight_id))
         envelope.add_control("profile", href=FLIGHT_BOOKING_SYSTEM_FLIGHT_PROFILE)
         envelope.add_control("collection", href=api.url_for(Flights, template_id=flight_db["searchresultid"]), method="GET")
-        envelope.add_control("subsection", href=api.url_for(TemplateFlights, template_id = flight_db["searchresultid"]),
+        envelope.add_control("subsection", href=api.url_for(TemplateFlight, template_id = flight_db["searchresultid"]),
                                                             method="GET")
         envelope.add_control_make_reservation()
 
