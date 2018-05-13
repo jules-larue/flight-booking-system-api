@@ -51,8 +51,8 @@
 
           <!-- Content to display user data -->
           <div id="userData">
-            <p class="lead">You can access and modify the user information</p>
             <div class="section" id="userHeader">
+            <p class="lead">You can access and modify the user information</p>
 
               <form action="#" id="user_form" class="container">
                 <div class="row">
@@ -93,6 +93,40 @@
                   <p class="lead" id="titleReservationsMade">Reservations for this user</p>
                   <p class="lead" id="titleNoReservation">No reservation for this user.</p>
                   <div id="reservationsList">
+                  </div>
+              </div>
+
+              <!-- Section for one specific user reservation -->
+              <div id="reservation">
+                  <p class="lead" id="reservationReference"></p>
+                  <p>
+                    <span id="reservationFrom"></span>
+                    <img class='plane-reservation-element-icon' src='img/ic_flight_right.png' />
+                    <span id="reservationTo"></span>
+                  </p>
+                  <p id="departureTime"></p>
+                  <p id="arrivalTime"></p>
+
+                  <p class="lead" id="titleReservationTickets">Reservation tickets</p>
+                  <p class="lead" id="titleNoReservationTicket">No ticket for this reservation</p>
+                  <form action="/flight-booking-system/api/tickets/1050" id="addTicket" class="card">
+                    <div class="form_content">
+                      <p class="lead">Add a new ticket</p>
+                        <label for="firstName">First name</label>
+                        <input type="text" class="form-control editable" name="firstName" id="firstName" placeholder="Passenger's first name" required="">
+                        <label for="familyName">Last name</label>
+                        <input type="text" class="form-control editable" name="familyName" id="familyName" placeholder="Passenger's family name">
+                        <label for="age">Age</label>
+                        <input type="text" class="form-control editable" name="age" id="age" placeholder="Passenger's age" required="">
+                        <label for="gender">Gender</label>
+                        <input type="text" class="form-control editable" name="gender" id="gender" placeholder="Passenger's gender" required="">
+                        <input type="hidden" name="reservation_id" id="reservation_id" />
+                        <div class="pull-right">
+                          <button class="btn btn-success" id="btnAddTicket">Add ticket</button>
+                        </div>
+                    </div>
+                </form>
+                  <div id="ticketsList">
                   </div>
               </div>
 

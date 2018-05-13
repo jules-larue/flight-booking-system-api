@@ -37,9 +37,10 @@ footer {
 .card {
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.19);
     border-radius: 2px;
-    padding: 16px;
+    padding: 50px;
     width: 65%;
     word-wrap: break-word;
+    margin-bottom: 16px;
 }
 
 .card-main-text .lead {
@@ -57,4 +58,8 @@ footer {
 
 .viewReservationBtn {
   text-align: right;
+}
+
+.btn-ticket {
+  margin: 4px;
 }

@@ -2,8 +2,7 @@
 * @fileOverview Flight reservation administration dashboard. It utilizes the Flight Booking
 API to handle user information (retrieve user list, edit user profile,
 as well as add and remove new users form the system). It also
-permits to list the user reservations, flights templates flights
-but also to make a reservation and to create a new flight and a new
+permits to list the user reservations
 template flight.
 * @author <a href="mailto:jules.larue@student.oulu.fi">Jules Larue</a>
 * @version 1.0
@@ -101,7 +100,7 @@ function getUsers(apiurl) {
     $("#user_list").empty();
     $("#mainContent").hide();
 
-  }).done(function (data, textStatus, jqXHR){
+    }).done(function (data, textStatus, jqXHR){
     if (DEBUG) {
       console.log ("RECEIVED RESPONSE: data:",data,"; textStatus:",textStatus);
     }
@@ -173,8 +172,37 @@ function createFormFromSchema(url,schema,id){
 
     });
   }
+
   return $form;
 }
+
+
+
+function createFormFromSchemaForTicket(url,schema,id){
+  $form=$('#'+ id);
+  $form.attr("action",url);
+  //Clean the forms
+  $form.append('<div class="form_content"></div>')
+  $form_content=$("#" + id + " .form_content");
+  $form_content.empty();
+  $("input[type='button']",$form).hide();
+  if (schema.properties) {
+    var props = schema.properties;
+    Object.keys(props).forEach(function(key, index) {
+      if (props[key].type == "object") {
+        appendObjectFormFields($form_content, key, props[key]);
+      }
+      else {
+        appendInputFormField($form_content, key, props[key], schema.required.includes(key));
+      }
+
+    });
+  }
+
+  return $form;
+}
+
+
 
 
 /**
@@ -237,6 +265,37 @@ function appendObjectFormFields($container, name, object_schema) {
   $container.append($div);
 }
 
+
+/**
+* Displays a reservation in the Reservation section.
+*
+* @param {Object} reservation - An associative array
+* containing the reservation information
+* @param {Object} flight - An associative array
+* containing the flight info of the reservation
+* @param {Object} template_flight - An associative array
+* containing the template flight info of the reservation
+* containing the flight info of the reservation
+*/
+function showReservation(reservation, flight, template_flight) {
+  prepareReservationDataVisualization();
+
+
+  // Get useful data
+  var origin = template_flight.origin;
+  var destination = template_flight.destination;
+  var depTime = template_flight.dep_time;
+  var arrTime = template_flight.arr_time;
+  var depDate = flight.depDate;
+  var arrDate = flight.arrDate;
+
+  // Fill with reservation data
+  $("#reservationReference").text("Reservation " + reservation.reference);
+  $("#reservationFrom").text(origin);
+  $("#reservationTo").text(destination);
+  $("#departureTime").text("Departure: " + depDate + " at " + depTime);
+  $("#arrivalTime").text("Arrival: " + arrDate + " at " + arrTime);
+}
 
 
 
@@ -465,7 +524,6 @@ function get_user(apiurl) {
 *                     of the new user to add
 */
 function add_user(api_url, new_user_info) {
-  console.log("user data: " + JSON.stringify(new_user_info))
   $.ajax({
     url: api_url,
     type: "POST",
@@ -478,7 +536,7 @@ function add_user(api_url, new_user_info) {
     }
 
     // Inform user that the user has been deleted
-    alert_success("The user with has been deleted from the system.");
+    alert_success("The user with has been added to the system.");
 
     // Update the users list from the server
     getUsers();
@@ -488,7 +546,45 @@ function add_user(api_url, new_user_info) {
     }
 
     // Inform the user that user has NOT been deleted
-    alert_error("Error while trying to delete the user from the database.");
+    alert_error("Error while trying to add the user to the database.");
+  });
+}
+
+
+
+/**
+* Sends an AJAX request to add a reservation to the API.
+* Makes use of the HTTP POST method.
+* ONSUCCESS => Show an alert to the user to inform that reservation has been added
+*
+* ONERROR => Displays a message to the user to inform him that reservation
+*           could not be added to the system
+* @param api_url the url of the resource to add a new reservation
+* @param reservation_info an associative aray containing the information
+*                     of the new reservation to add
+*/
+function add_reservation(api_url, reservation_info) {
+  $.ajax({
+    url: api_url,
+    type: "POST",
+    data: JSON.stringify(reservation_info),
+    processData:false,
+    contentType: PLAINJSON
+  }).done(function (data, textStatus, jqXHR){
+    if (DEBUG) {
+      console.log ("RECEIVED RESPONSE: data:",data,"; textStatus:",textStatus);
+    }
+
+    // Inform user that the user has been deleted
+    alert_success("The reservation has been added to the system.");
+
+  }).fail(function (jqXHR, textStatus, errorThrown){
+    if (DEBUG) {
+      console.log ("RECEIVED ERROR: textStatus:",textStatus, ";error:",errorThrown);
+    }
+
+    // Inform the user that user has NOT been deleted
+    alert_error("Error while trying to add the reservation to the database.");
   });
 }
 
@@ -506,7 +602,6 @@ function add_user(api_url, new_user_info) {
 * @param api_url the url of the user resource to delete
 */
 function delete_user(api_url) {
-  console.log("DElete Url : " + api_url)
   $.ajax({
     url: api_url,
     type: 'DELETE'
@@ -529,6 +624,46 @@ function delete_user(api_url) {
     alert_error("Error while trying to delete the user from the database.");
   });
 }
+
+
+
+
+/**
+* Sends an AJAX request to delete a ticket from the API.
+* Makes use of the HTTP DELETE method.
+* ONSUCCESS =>
+*             1) Show an alert to the user to inform him that deletion was successful
+*             2) Reloads the list of all the users to display
+*
+* ONERROR => Displays a message to the user to inform him that ticket
+*           could not be deleted
+* @param api_url the url of the ticket resource to delete
+*/
+function delete_ticket(api_url) {
+  $.ajax({
+    url: api_url,
+    type: 'DELETE'
+  }).done(function (data, textStatus, jqXHR){
+    if (DEBUG) {
+      console.log ("RECEIVED RESPONSE: data:",data,"; textStatus:",textStatus);
+    }
+
+    // Inform user that the user has been deleted
+    alert_success("The ticket with has been deleted from the system.");
+
+    // Update the users list from the server
+    getUsers();
+  }).fail(function (jqXHR, textStatus, errorThrown){
+    if (DEBUG) {
+      console.log ("RECEIVED ERROR: textStatus:",textStatus, ";error:",errorThrown);
+    }
+
+    // Inform the user that user has NOT been deleted
+    alert_error("Error while trying to delete the user from the database.");
+  });
+}
+
+
 
 /**
 * Sends an AJAX request to update the information of a user.
@@ -573,6 +708,59 @@ function edit_user(api_url, updated_user_data) {
 }
 
 
+
+/**
+* Sends an AJAX request to update the information of a ticket.
+* Makes use of the HTTP PUT method.
+*
+* ONSUCCESS =>
+*               1) Show an alert to the user to inform him that update was successful
+*               2) Reloads the list of all users
+*
+* ONERROR => Displays a message to the user to inform him that ticket
+*           data could not be updated
+* @param api_url the url of the ticket resource to update
+* @param updated_ticket_data an associative array containing the new
+*                         information of the ticket
+*/
+function edit_ticket(api_url, updated_ticket_data) {
+  $.ajax({
+    url: api_url,
+    type: "PUT",
+    data: JSON.stringify(updated_ticket_data),
+    processData:false,
+    contentType: PLAINJSON
+  }).done(function (data, textStatus, jqXHR){
+    if (DEBUG) {
+      console.log ("RECEIVED RESPONSE: data:",data,"; textStatus:",textStatus);
+    }
+
+    // Inform user that the user has been deleted
+    alert_success("The ticket data has been successfully updated.");
+
+  }).fail(function (jqXHR, textStatus, errorThrown){
+    if (DEBUG) {
+      console.log ("RECEIVED ERROR: textStatus:",textStatus, ";error:",errorThrown);
+    }
+
+    // Inform the user that user has NOT been deleted
+    alert_error("Error while trying to update the ticket data.");
+  });
+}
+
+
+
+
+/**
+* Sends an AJAX request to get all the reservations of a user.
+* Makes use of the HTTP GET method.
+*
+* ONSUCCESS => Displays all the reservations in a list
+*
+* ONERROR => Displays a message to the user to inform him that
+*           data could not be obtained
+* @param api_url the url of the UserReservations resource to get
+*/
 function get_user_reservations(api_url) {
   $.ajax({
     url: api_url,
@@ -610,6 +798,148 @@ function get_user_reservations(api_url) {
 }
 
 
+
+function appendAddTicketSection(api_url, ticket_schema_url) {
+  $.ajax({
+    type: 'get',
+
+  })
+}
+
+
+/**
+* Sends an AJAX request to get reservation tickets.
+* Makes use of the HTTP GET method.
+*
+* ONSUCCESS => Displays the reservation tickets information
+*
+* ONERROR => Displays a message to the user to inform him that
+*           data could not be obtained
+* @param api_url the url of the ReservationTickets resource to get
+*/
+function get_tickets(api_url) {
+  $.ajax({
+    url: api_url,
+    type: 'get'
+  }).done(function(data, textStatus, jqXHR) {
+
+    tickets = data.items;
+
+    if (tickets.length == 0) {
+      $("#titleReservationTickets").hide();
+      $("#titleNoReservationTicket").show();
+    } else {
+        $("#titleReservationTickets").show();
+        $("#titleNoReservationTicket").hide();
+    }
+
+    tickets.forEach(function(ticket, index) {
+      /*
+      * Get each ticket data and display object_schema
+      */
+      var ticket_url = ticket["@controls"].self.href;
+      $.ajax({
+        type: 'get',
+        url: ticket_url
+      }).done(function(data, textStatus, jqXHR) {
+        appendTicket(data);
+      });
+    });
+
+    var ticket_schema_url = "/flight-booking-system/schema/ticket"
+    appendAddTicketSection(api_url, ticket_schema_url);
+  });
+}
+
+
+
+
+/**
+* Sends an AJAX request to get a reservation.
+* Makes use of the HTTP GET method.
+*
+* ONSUCCESS => Displays the reservation information
+*
+* ONERROR => Displays a message to the user to inform him that
+*           reservation could not be obtained
+* @param api_url the url of the Reservation resource to get
+*/
+function get_reservation(api_url) {
+  $.ajax({
+    url: api_url,
+    type: 'get'
+  }).done(function(data, textStatus, jqXHR) {
+
+    var reservation_data = data;
+    $("#reservation_id").val(reservation_data["reservationid"])
+    console.log("ResId = " + reservation_data["reservationid"])
+    console.log("val = " + $("#reservation_id").val())
+    var flight_url = reservation_data["@controls"]["subsection"]["href"];
+
+    // Get flight information
+    $.ajax({
+      url: flight_url,
+      type: 'get'
+    }).done(function(data, textStatus, jqXHR) {
+
+      var flight_data = data;
+      var template_flight_url = flight_data["@controls"]["subsection"]["href"];
+
+      // Get template flight information
+      $.ajax({
+        url: template_flight_url,
+        type: 'get'
+      }).done(function(data, textStatus, jqXHR) {
+
+        // Display the reservation
+        showReservation(reservation_data, flight_data, data);
+
+        // Display the tickets of the reservation
+        var reservation_tickets_url = reservation_data["@controls"]["reservation-tickets"]["href"];
+        get_tickets(reservation_tickets_url);
+
+        // Set the link to add a new ticket
+        var add_ticket_url = reservation_data["@controls"]["flight-booking-system:add-ticket"].href;
+        $("#btnAddTicket").closest("form").attr("action", add_ticket_url);
+        $("#btnAddTicket").on("click", handleAddTicket);
+        $("#addTicket").show();
+        $("#addTicket input :not(#reservation_id)").val("");
+      });
+    });
+  });
+}
+
+
+function add_ticket(api_url, data) {
+  console.log("addTicket: res id = " + $("#reservation_id").val())
+  console.log("addTicket: data = " + JSON.stringify(data))
+  $.ajax({
+    url: api_url,
+    type: "POST",
+    data: JSON.stringify(data),
+    processData:false,
+    contentType: PLAINJSON
+  }).done(function (data, textStatus, jqXHR){
+    if (DEBUG) {
+      console.log ("RECEIVED RESPONSE: data:",data,"; textStatus:",textStatus);
+    }
+
+    // Inform user that the user has been deleted
+    alert_success("The ticket has been added to the reservation.");
+
+    // Update the users list from the server
+    getUsers();
+  }).fail(function (jqXHR, textStatus, errorThrown){
+    if (DEBUG) {
+      console.log ("RECEIVED ERROR: textStatus:",textStatus, ";error:",errorThrown);
+    }
+
+    // Inform the user that user has NOT been deleted
+    alert_error("Error while trying to add the ticket to the database.");
+  });
+}
+
+
 /**
 * Append a new user to the #user_list. It appends a new <li> element in the #user_list
 * using the information received in the arguments.
@@ -628,12 +958,20 @@ function appendUserToList(url, userName) {
 }
 
 
-
+/**
+* Append a new reservation to the #userReservations list.
+*
+* @param {string} reservation_api_url - The url of the Reservation to be added to the list
+* @param {Object} reservation_item - An associative array containing the information of the reservation
+* @param {string} from - The origin location of the reservation
+* @param {string} to - The destination location of the reservation
+* @param {string} departure_date - The departure date of the reservation
+**/
 function appendReservationToList(reservation_api_url, reservation_item, from, to, departure_date) {
-  $reservations_list = $("#reservationsList");
+  var $reservations_list = $("#reservationsList");
 
-  res_id = "res-" + reservation_item["reservation_id"];
-  $reservation_item = $("<div id='" + res_id + "' class='card'>"
+  var res_id = "res-" + reservation_item["reservation_id"];
+  var $reservation_item = $("<div id='" + res_id + "' class='card'>"
       + " <p class='lead'>"
       +   from
       + " <img class='plane-reservation-element-icon' src='img/ic_flight_right.png' />"
@@ -643,14 +981,69 @@ function appendReservationToList(reservation_api_url, reservation_item, from, to
       + " <br/>"
       + " <span class='pull-left reservation-reference'><strong>" + reservation_item["reference"] + "</strong></span>"
       + " <div class='text-right'>"
-      + "   <a class='btn btn-primary' role='button' href='" + reservation_api_url + "'>View</a>"
+      + "   <button class='btn btn-primary btn-view-reservation' href='" + reservation_api_url + "'>View</a>"
       + " </div>"
       + "</div>");
 
       // Add to the reservation list
       $("#reservationsList").append($reservation_item);
+      $(".btn-view-reservation").on("click", handleGetReservation);
 }
 
+
+/**
+* Append a new ticket to the #ticketsList list.
+*
+* @param {Object} ticket - An associative array containing the information of the ticket
+**/
+function appendTicket(ticket) {
+
+  var ticket_links = ticket["@controls"];
+  var resource_url = ticket_links.self.href;
+
+  // Create the form id for ticket
+  var form_id = 'ticket-' + ticket.ticket_id;
+
+  // Declare a variable for the form to create
+  var $form = $("<form action='#' id='" + form_id + "'></form>").appendTo("#ticketsList");
+  $form.append("<div class='form_content'></div>")
+
+  // Create a form for th ticket and fill it
+  if (ticket_links["edit"].schema) {
+    // Get the ticket schema
+    var ticket_schema = ticket_links["edit"].schema;
+    $form = createFormFromSchema(resource_url, ticket_schema, form_id);
+    fillFormWithMasonData($form, ticket);
+  }
+  else if (ticket_links["edit"].schemaUrl) {
+    $.ajax({
+      url: ticket_links["edit"].schemaUrl,
+      dataType: DEFAULT_DATATYPE
+    }).done(function (schema, textStatus, jqXHR) {
+      $form = createFormFromSchema(resource_url, schema, form_id);
+      fillFormWithMasonData($form, ticket);
+    }).fail(function (jqXHR, textStatus, errorThrown) {
+      if (DEBUG) {
+        console.log ("RECEIVED ERROR: textStatus:",textStatus, ";error:",errorThrown);
+      }
+      alert_error("Could not fetch form schema.  Please, try again");
+    });
+  }
+  else {
+    alert_error("Form schema not found");
+  }
+
+  // Add the form
+  $("#ticketsList").append($form);
+  $("#reservation form").addClass("card");
+
+  // Add buttons to edit and delete ticket
+  var $container = $("<div class='pull-right'></div>").appendTo($form);
+  var $btnEdit = $("<button class='btn btn-primary btn-ticket' href='" + resource_url + "'>Edit</button>").appendTo($container);
+  var $btnDelete = $("<button class='btn btn-primary btn-ticket' href='" + resource_url + "'>Delete</button>").appendTo($container);
+  $btnEdit.on("click", handleEditTicket);
+  $btnDelete.on("click", handleDeleteTicket);
+}
 
 
 
@@ -732,6 +1125,34 @@ function handleEditUser(event){
   return false;
 }
 
+
+function handleEditTicket(event){
+  //Extract the url of the resource from the form action attribute.
+  if (DEBUG) {
+    console.log ("Triggered handleEditUser");
+  }
+  var $form = $(this).closest("form");
+  var body = serializeFormTemplate($form);
+  var ticket_url = $(this).closest("form").attr("action");
+  edit_ticket(ticket_url, body);
+  return false;
+}
+
+
+
+function handleDeleteTicket(event){
+  //Extract the url of the resource from the form action attribute.
+  if (DEBUG) {
+    console.log ("Triggered handleDeleteUser");
+  }
+
+  var ticket_url = $(this).closest("form").attr("action");
+  delete_ticket(ticket_url);
+  return false;
+}
+
+
+
 /**
 * Uses the API to create a new user with the form attributes in the present form.
 *
@@ -746,6 +1167,27 @@ function handleCreateUser(event){
   var url = $form.attr("action");
   add_user(url, template);
   return false; //Avoid executing the default submit
+}
+
+
+
+/**
+* Uses the API to retrieve reservation's information
+* from the clicked reservation.
+**/
+function handleGetReservation(event) {
+  prepareReservationDataVisualization();
+  if (DEBUG) {
+    console.log ("Triggered handleGetReservation");
+  }
+
+  event.preventDefault();
+
+  var reservation_url = $(this).attr("href");
+  get_reservation(reservation_url);
+
+  // Important to not reload the page
+  return false;
 }
 
 
@@ -775,6 +1217,18 @@ function handleGetUser(event) {
   return;
 }
 
+
+
+function handleAddTicket(event) {
+  if (DEBUG) {
+    console.log ("Triggered handleAddTicket");
+  }
+  var $form = $(this).closest("form");
+  var template = serializeFormTemplate($form);
+  var url = $form.attr("action");
+  add_ticket(url, template);
+  return false; //Avoid executing the default submit
+}
 
 
 /***** UTIL FUNCTION *****/
@@ -888,14 +1342,31 @@ function prepareUserDataVisualization() {
   $("#userData input[type='text']").val("??");
   //Remove old messages
   $("#reservationsList").empty();
+  $("#ticketsList").empty();
+  // Hide section for one reservations
   //Be sure that the newUser form is hidden
   $("#newUser").hide();
   //Be sure that user information is shown
   $("#userData").show();
+  $("#userData").children().show();
+  $("#reservation").hide();
+  $("#addTicket").hide();
   //Be sure that mainContent is shown
   $("#mainContent").show();
 }
 
+
+
+function prepareReservationDataVisualization() {
+
+  $("#userHeader").hide();
+  $("#userProfile").hide();
+  $("#userReservations").hide();
+  $("#newUser").hide();
+  $("#reservation").show();
+  $("#ticketsList").empty();
+  $("#addTicket").show();
+}
 
 
 /***** NOTIFICATIONS FUNCTIONS *****/

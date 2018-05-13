@@ -1,0 +1,26 @@
+{
+    "type": "object",
+    "properties": {
+        "firstName": {
+            "title": "First name",
+            "description": "Passenger's first name",
+            "type": "string"
+        },
+        "familyName": {
+            "title": "Last name",
+            "description": "Passenger's family name",
+            "type": "string"
+        },
+        "age": {
+            "title": "Age",
+            "description": "Passenger's age",
+            "type": "string"
+        },
+        "gender": {
+            "title": "Gender",
+            "description": "Passenger's gender",
+            "type": "string"
+        }
+    },
+    "required": ["firstName", "familyName", "age", "gender"]
+}

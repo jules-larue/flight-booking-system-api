@@ -32,9 +32,9 @@ APIARY_PROFILES_URL = STUDENT_APIARY_PROJECT + "/#reference/profiles/"
 APIARY_RELS_URL = STUDENT_APIARY_PROJECT + "/#reference/link-relations/"
 
 USER_SCHEMA_URL = "/flight-booking-system/schema/user"
-RESERVATION_SCHEMA_URL = "/flight-booking-system/schema/user/reservation"
-TICKET_SCHEMA_URL = "/flight-booking-system/schema/user/ticket"
-FLIGHT_SCHEMA_URL = "/flight-booking-system/schema/user/flight"
+RESERVATION_SCHEMA_URL = "/flight-booking-system/schema/reservation"
+TICKET_SCHEMA_URL = "/flight-booking-system/schema/ticket"
+FLIGHT_SCHEMA_URL = "/flight-booking-system/schema/flight"
 TEMPLATE_FLIGHT_SCHEMA_URL="/flight-booking-system/schema/template-flight"
 LINK_RELATIONS_URL = "/flight-booking-system/link-relations/"
 
@@ -713,6 +713,13 @@ class Reservation(Resource):
                              href=api.url_for(Flight, flight_id=reservation_db["flightid"]),
                              encoding="application/json",
                              method="GET")
+
+        envelope.add_control("reservation-tickets",
+                              title="Get the reservation tickets",
+                              href=api.url_for(ReservationTickets, reservation_id=reservation_id),
+                              encoding="application/json",
+                              method="GET")
+        envelope.add_control_add_ticket()
 
         return Response(json.dumps(envelope), 200, mimetype=MASON + ";" + FLIGHT_BOOKING_SYSTEM_RESERVATION_PROFILE)
 
@@ -1619,7 +1626,7 @@ api.add_resource(TemplateFlights, "/flight-booking-system/api/template-flights/"
 #Send our schema file(s)
 @app.route("/flight-booking-system/schema/<schema_name>/")
 def send_json_schema(schema_name):
-    return send_from_directory(app.static_folder, "schema/{}.json".format("user"))
+    return send_from_directory(app.static_folder, "schema/{}.json".format(schema_name))
 
 #Start the application
 #DATABASE SHOULD HAVE BEEN POPULATED PREVIOUSLY
