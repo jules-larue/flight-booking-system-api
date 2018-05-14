@@ -13,6 +13,16 @@ To run the api tests, got to the root of the project. Then, execute the followin
 
 > python3 -m test.flight_booking_system_api_tests
 
+
+CLIENT APPLICATION
+------------------
+To access the client application, you must have started the server as shown above.
+Then in a web browser, go to the following URL to access the administration web interface:
+/flight-booking-system/admin/ui-users.html
+
+You may also prepend the URL with `localhost:5000` in order to specify the server name.
+
+
 CREATE THE DATABASE
 ------------------
 
